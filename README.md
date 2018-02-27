@@ -8,7 +8,7 @@ plugin is designed to work with my generic WebAudio ScriptProcessor music player
 It allows to play Sega Dreamcast Sound Format (.DSF/.MINIDSF) files and Sega Saturn Sound 
 Format (.SSF/.MINISSF) files.
 
-A live demo of this program can be found here: http://www.wothke.ch/webHT/
+A live demo of this program can be found here: http://www.wothke.ch/webSEGA/
 
 
 ## Credits
@@ -26,22 +26,22 @@ You'll need Emscripten (http://kripken.github.io/emscripten-site/docs/getting_st
 is designed for use of emscripten version 1.37.29 (unless you want to create WebAssembly output, older versions might 
 also still work).
 
-The below instructions assume that the webn64 project folder has been moved into the main emscripten 
+The below instructions assume that the webSEGA project folder has been moved into the main emscripten 
 installation folder (maybe not necessary) and that a command prompt has been opened within the 
 project's "emscripten" sub-folder, and that the Emscripten environment vars have been previously 
 set (run emsdk_env.bat).
 
 The Web version is then built using the makeEmscripten.bat that can be found in this folder. The 
 script will compile directly into the "emscripten/htdocs" example web folder, were it will create 
-the backend_HT.js library. (To create a clean-build you have to delete any previously built libs in the 
+the backend_sega.js library. (To create a clean-build you have to delete any previously built libs in the 
 'built' sub-folder!) The content of the "htdocs" can be tested by first copying it into some 
 document folder of a web server. 
 
 
 ## Depencencies
 
-The current version requires version 1.02 (older versions will not
-support WebAssembly) of my https://github.com/wothke/webaudio-player.
+The current version requires version 1.03 (older versions will not
+support WebAssembly and/or drag&drop of multi-file songs) of my https://github.com/wothke/webaudio-player.
 
 This project comes without any music files, so you'll also have to get your own and place them
 in the htdocs/music folder (you can configure them in the 'songs' list in index.html).
