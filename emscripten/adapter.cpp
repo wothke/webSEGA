@@ -26,13 +26,13 @@
 #include <iostream>
 #include <fstream>
 
-
+/*
 #ifdef EMSCRIPTEN
 #define EMSCRIPTEN_KEEPALIVE __attribute__((used))
 #else
 #define EMSCRIPTEN_KEEPALIVE
 #endif
-
+*/
 #define BUF_SIZE	1024
 #define TEXT_MAX	255
 #define NUM_MAX	15

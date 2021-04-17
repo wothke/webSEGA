@@ -106,7 +106,7 @@ int stricmp_utf8_partial(std::string const& s1,  const char* s2) {
     }))
 
 
-#define trace(...) { fprintf(stderr, __VA_ARGS__); }
+//#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 //#define trace(fmt,...)
 
 // callback defined elsewhere 
@@ -649,7 +649,6 @@ public:
 	
 	int open(const char * p_path ) {
 		m_info.reset();
-
 		m_path = p_path;
 		
 		xsf_version = psf_load( p_path, &psf_file_system, 0, 0, 0, 0, 0, 0 );
@@ -696,8 +695,9 @@ public:
 			int r= ht_request_file(libFile.c_str());	// trigger load & check if ready
 			if (r <0) {
 				return -1; // file not ready
+			} else {
 			}
-		}	
+		}
 		return 0;
 	}
 
@@ -761,7 +761,6 @@ public:
 		sdsf_load_state state;
 
 		if ( psf_load( m_path.c_str(), &psf_file_system, xsf_version, sdsf_load, &state, 0, 0, 0 ) < 0 ) {
-fprintf(stderr, "ERROR psf_load [%s]\n", m_path.c_str());		
 			throw exception_io_data( "Invalid SSF/DSF" );
 		}
 		uint32_t start = byteswap_if_be_t( *(uint32_t*)(state.state.get_ptr()) );
@@ -796,7 +795,6 @@ fprintf(stderr, "ERROR psf_load [%s]\n", m_path.c_str());
 
 				int rtn = sega_execute( pEmu, 0x7FFFFFFF, output_buffer, & skip_howmany );
 				if ( rtn < 0 ) { 
-fprintf(stderr, "ERROR sega_execute\n");		
 					throw exception_io_data();
 				}
 				short * foo = (short *)output_buffer;
@@ -844,12 +842,10 @@ fprintf(stderr, "ERROR sega_execute\n");
 		// note: original impl used a separate output buffer (that needed to be copied later)
 		// reused impl from n64 rather than the (older) HT one
 		if ( eof || err < 0 ) { 
-fprintf(stderr, " decode_run ERROR [%d] [%d]\n", eof, err);		
 			return -1;
 		}
 
 		if ( no_loop && tag_song_ms && sample_rate && data_written >= (song_len + fade_len) ) {
-fprintf(stderr, " decode_run END\n");		
 			return -1;
 		}
 		unsigned int written = 0;
@@ -878,11 +874,9 @@ fprintf(stderr, " decode_run END\n");
 								
 				err = sega_execute( sega_state.get_ptr(), 0x7FFFFFFF, ptr, & todo );
 				if ( err < 0 ) { 
-fprintf(stderr, "ERROR sega_execute 2\n");		
 					throw exception_io_data( "Execution halted with an error." );
 				}
 				if ( !todo ) { 
-fprintf(stderr, "ERROR sega_execute 3\n");		
 					throw exception_io_data();
 				}
 								
@@ -918,11 +912,9 @@ fprintf(stderr, "ERROR sega_execute 3\n");
 				written = size;
 				err = sega_execute( sega_state.get_ptr(), 0x7FFFFFFF, output_buffer, & written );
 				if ( err < 0 ) { 
-fprintf(stderr, "ERROR sega_execute 5\n");		
 					throw exception_io_data( "Execution halted with an error." );
 				}
 				if ( !written ) { 
-fprintf(stderr, "ERROR sega_execute 6\n");		
 					throw exception_io_data(); 
 				}
 			}
@@ -1097,8 +1089,8 @@ std::string stringToUpper(std::string strToConvert) {
 }
 void* em_fopen( const char * uri ) {
 	// use of upper/lower case is a total mess with these music files..
-	std::string file= stringToUpper(std::string(uri));
-	return (void*)fopen(file.c_str(), "r");
+	// any attempts to fix mismatches are handled within sega_adapter.js!
+	return (void*)fopen(uri, "r");
 }
 size_t em_fread( void * buffer, size_t size, size_t count, void * handle ) {
 	return fread(buffer, size, count, (FILE*)handle );

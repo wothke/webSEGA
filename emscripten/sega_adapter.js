@@ -25,8 +25,14 @@
 // In the context of "drag/drop" case-mismatches do NOT work and all
 // filenames therefore are always transformed to uppercase.
 
-SEGABackendAdapter = (function(){ var $this = function () {
+SEGABackendAdapter = (function(){ var $this = function (modlandMode) {
 		$this.base.call(this, backend_SEGA.Module, 2);
+		
+		// aka dumshit ftp.modland.com mode:
+		this.modlandMode= (typeof modlandMode != 'undefined') ? modlandMode : false;
+		this.originalFile= "";
+		this.modlandMap= {};	// mapping of weird shit filenames used on modland 
+
 		this._manualSetupComplete= true;
 		this._undefined;
 		this._currentPath;
@@ -75,36 +81,88 @@ SEGABackendAdapter = (function(){ var $this = function () {
 			}
 			this.Module.ccall('emu_seek_position', 'number', ['number'], [pos]);
 		},
+
+		/*
+		* Creates the URL used to retrieve the song file.
+		*/
+		mapUrl: function(filename) {			
+			// used transform the "internal filename" to a valid URL
+			var uri= this.mapFs2Uri(filename);
+			return uri;
+		},
+		mapInternalFilename: function(overridePath, basePath, filename) {
+			//map URLSs to FS	
+			filename= this.mapUri2Fs(filename);	// treat all songs as "from outside"
+
+			var f= ((overridePath)?overridePath:basePath) + filename;	// this._basePath ever needed?			
+			if (this.modlandMode) this.originalFile= f;			
+			return f;
+		},
 		
 		getPathAndFilename: function(filename) {
-			filename= filename.toUpperCase();
-			
 			var sp = filename.split('/');
 			var fn = sp[sp.length-1];					
 			var path= filename.substring(0, filename.lastIndexOf("/"));	
-			if (path.lenght && !path.endsWith("/")) 
-				path= path+"/";
-
+			if (path.length) path= path+"/";
+			
 			return [path, fn];
 		},
-		
-		mapCacheFileName: function (name) {
-			// cache keys are case sensitive and the garbage file names must be compensated for			
-			return name.toUpperCase();
-		},
-		
-		mapBackendFilename: function (name) {			
-			var input= this.Module.Pointer_stringify(name); // "name" comes from the C++ side
+		mapBackendFilename: function (name) {
+			// "name" comes from the C++ side 
+
+			// NOTE: the upper/lower case of this may not match the file (what a stupid mess!):
 			
-			// the upper/lower case of this may not match the file, e.g.
-			// original filename may be "Foo.dsflib" and the *.dsf file that depends 
-			// on it refers to it as "fOO.dsflib" -- what a stupid mess
-						
-			input= input.toUpperCase();			
+			// e.g. .minidss links to "SGGG_FIGHT.dsflib" but the actual libfile on modland is 
+			// called "sggg_fight.dsflib"! (local Windows FS files is case insensitive and file
+			// will be found - but via a web server	that might not always work..)
+
+			var input= this.Module.Pointer_stringify(name);
+			var o= input;
+			if (this.modlandMode) {
+				var tmpPathFilenameArray = new Array(2);	// do not touch original IO param			
+				var p= input.lastIndexOf("/");
+				if (p > 0) {
+					tmpPathFilenameArray[0]= input.substring(0, p);
+					tmpPathFilenameArray[1]= input.substring(p+1);
+					
+					var output= tmpPathFilenameArray[1].toLowerCase();	// idiots!
+					if (tmpPathFilenameArray[1] != output) {	// remember the filename mapping (path is the same)
+						this.modlandMap[output.replace(/^.*[\\\/]/, '')]= tmpPathFilenameArray[1].replace(/^.*[\\\/]/, '');	// needed to create FS expected by emu
+						tmpPathFilenameArray[1]= output;
+					}				
+				} else  {
+					tmpPathFilenameArray[0]= "";
+					tmpPathFilenameArray[1]= input;
+				}							
+								
+				input= tmpPathFilenameArray[0]+"/"+ tmpPathFilenameArray[1];
+			}
+			
 			return input;
 		},
 		registerFileData: function(pathFilenameArray, data) {
-			return this.registerEmscriptenFileData(pathFilenameArray, data);
+			// input: the path is fixed to the basePath & the filename is actually still a path+filename
+			var path= pathFilenameArray[0];
+			var filename= pathFilenameArray[1];
+
+			// MANDATORTY to move any path info still present in the "filename" to "path"
+			var tmpPathFilenameArray = new Array(2);	// do not touch original IO param			
+			var p= filename.lastIndexOf("/");
+			if (p > 0) {
+				tmpPathFilenameArray[0]= path + filename.substring(0, p);
+				tmpPathFilenameArray[1]= filename.substring(p+1);
+			} else  {
+				tmpPathFilenameArray[0]= path;
+				tmpPathFilenameArray[1]= filename;
+			}
+
+			if (this.modlandMode) {
+				if (typeof this.modlandMap[tmpPathFilenameArray[1]] != 'undefined') {
+					tmpPathFilenameArray[1]= this.modlandMap[tmpPathFilenameArray[1]];	// reverse map
+				}
+			}
+			// setup data in our virtual FS (the next access should then be OK)
+			return this.registerEmscriptenFileData(tmpPathFilenameArray, data);
 		},
 		loadMusicData: function(sampleRate, path, filename, data, options) {
 			var ret = this.Module.ccall('emu_init', 'number', 
@@ -123,7 +181,7 @@ SEGABackendAdapter = (function(){ var $this = function () {
 			return ret;
 		},
 		evalTrackOptions: function(options) {
-// is there any scenario with subsongs?
+			// is there any scenario with subsongs?
 			if (typeof options.timeout != 'undefined') {
 				ScriptNodePlayer.getInstance().setPlaybackTimeout(options.timeout*1000);
 			}
@@ -151,13 +209,13 @@ SEGABackendAdapter = (function(){ var $this = function () {
 
 			var array = this.Module.HEAP32.subarray(ret>>2, (ret>>2)+numAttr);
 			result.title= this.Module.Pointer_stringify(array[0]);
+			if (!result.title.length) result.title= filename.replace(/^.*[\\\/]/, '').split('.').slice(0, -1).join('.');
+
 			result.artist= this.Module.Pointer_stringify(array[1]);		
 			result.game= this.Module.Pointer_stringify(array[2]);
 			result.year= this.Module.Pointer_stringify(array[3]);
 			result.genre= this.Module.Pointer_stringify(array[4]);
 			result.copyright= this.Module.Pointer_stringify(array[5]);
-			result.psfby= this.Module.Pointer_stringify(array[6]);
-			
-			if (!result.title.length) result.title= (result.game.length) ? result.game : filename;		
+			result.psfby= this.Module.Pointer_stringify(array[6]);			
 		}
 	});	return $this; })();
